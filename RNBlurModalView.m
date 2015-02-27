@@ -335,12 +335,10 @@ typedef void (^RNBlurCompletion)(void);
             self.alpha = 1.f;
             self.transform = CGAffineTransformScale(CGAffineTransformIdentity, 1.f, 1.f);
         } completion:^(BOOL finished) {
-            if (finished) {
-                [[NSNotificationCenter defaultCenter] postNotificationName:kRNBlurDidShowNotification object:nil];
-                self.isVisible = YES;
-                if (_completion) {
-                    _completion();
-                }
+            [[NSNotificationCenter defaultCenter] postNotificationName:kRNBlurDidShowNotification object:nil];
+            self.isVisible = YES;
+            if (_completion) {
+                _completion();
             }
         }];
 
@@ -364,16 +362,14 @@ typedef void (^RNBlurCompletion)(void);
                              _blurView.alpha = 0.f;
                          }
                          completion:^(BOOL finished){
-                             if (finished) {
-                                 [_blurView removeFromSuperview];
-                                 _blurView = nil;
-                                 [self removeFromSuperview];
-                                 
-                                 [[NSNotificationCenter defaultCenter] postNotificationName:kRNBlurDidHidewNotification object:nil];
-                                 self.isVisible = NO;
-                                 if (completion) {
-                                     completion();
-                                 }
+                             [_blurView removeFromSuperview];
+                             _blurView = nil;
+                             [self removeFromSuperview];
+                             
+                             [[NSNotificationCenter defaultCenter] postNotificationName:kRNBlurDidHidewNotification object:nil];
+                             self.isVisible = NO;
+                             if (completion) {
+                                 completion();
                              }
                          }];
     }
@@ -697,7 +693,7 @@ typedef void (^RNBlurCompletion)(void);
     //clean up
     CGContextRelease(ctx);
     CGColorSpaceRelease(colorSpace);
-    free(pixelBuffer2)
+    free(pixelBuffer2);
     free(pixelBuffer);
     CFRelease(inBitmapData);
     
