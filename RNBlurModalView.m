@@ -28,18 +28,18 @@
 #import <QuartzCore/QuartzCore.h>
 
 /*
-    This bit is important! In order to prevent capturing selected states of UIResponders I've implemented a delay. Please feel free to set this delay to *whatever* you deem apprpriate.
-    I've defaulted it to 0.125 seconds. You can do shorter/longer as you see fit. 
+ This bit is important! In order to prevent capturing selected states of UIResponders I've implemented a delay. Please feel free to set this delay to *whatever* you deem apprpriate.
+ I've defaulted it to 0.125 seconds. You can do shorter/longer as you see fit.
  */
 CGFloat const kRNBlurDefaultDelay = 0.125f;
 
 /*
-    You can also change this constant to make the blur more "blurry". I recommend the tasteful level of 0.2 and no higher. However, you are free to change this from 0.0 to 1.0.
+ You can also change this constant to make the blur more "blurry". I recommend the tasteful level of 0.2 and no higher. However, you are free to change this from 0.0 to 1.0.
  */
-CGFloat const kRNDefaultBlurScale = 0.2f;
+CGFloat const kRNDefaultBlurScale = 0.5f;
 
-CGFloat const kRNBlurDefaultDuration = 0.2f;
-CGFloat const kRNBlurViewMaxAlpha = 1.f;
+CGFloat const kRNBlurDefaultDuration = 0.1f;
+CGFloat const kRNBlurViewMaxAlpha = 0.5f;
 
 CGFloat const kRNBlurBounceOutDurationScale = 0.8f;
 
@@ -79,6 +79,7 @@ typedef void (^RNBlurCompletion)(void);
 @end
 
 @interface RNBlurModalView ()
+@property (nonatomic, strong) UITapGestureRecognizer *behindTapGestureRecognizer;
 @property (assign, readwrite) BOOL isVisible;
 @end
 
@@ -146,16 +147,22 @@ typedef void (^RNBlurCompletion)(void);
         _dismissButton.center = CGPointZero;
         [_dismissButton addTarget:self action:@selector(hide) forControlEvents:UIControlEventTouchUpInside];
         
+        // Setup gesture to dismiss if blurred background is tapped
+        self.behindTapGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(hideFromBehind:)];
+        [self.behindTapGestureRecognizer setNumberOfTapsRequired:1];
+        self.behindTapGestureRecognizer.cancelsTouchesInView = NO; // So the user can still interact with controls in the modal view
+        [self addGestureRecognizer:self.behindTapGestureRecognizer];
+        
         self.alpha = 0.f;
         self.backgroundColor = [UIColor clearColor];
-//        self.backgroundColor = [UIColor redColor];
-//        self.layer.borderWidth = 2.f;
-//        self.layer.borderColor = [UIColor blackColor].CGColor;
+        //        self.backgroundColor = [UIColor redColor];
+        //        self.layer.borderWidth = 2.f;
+        //        self.layer.borderColor = [UIColor blackColor].CGColor;
         
         self.autoresizingMask = (UIViewAutoresizingFlexibleWidth |
-                                  UIViewAutoresizingFlexibleHeight |
-                                  UIViewAutoresizingFlexibleLeftMargin |
-                                  UIViewAutoresizingFlexibleTopMargin);
+                                 UIViewAutoresizingFlexibleHeight |
+                                 UIViewAutoresizingFlexibleLeftMargin |
+                                 UIViewAutoresizingFlexibleTopMargin);
         
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(orientationDidChangeNotification:) name:UIApplicationDidChangeStatusBarOrientationNotification object:nil];
     }
@@ -245,9 +252,9 @@ typedef void (^RNBlurCompletion)(void);
 
 
 - (void)orientationDidChangeNotification:(NSNotification*)notification {
-	if ([self isVisible]) {
-		[self performSelector:@selector(updateSubviews) withObject:nil afterDelay:0.3f];
-	}
+    if ([self isVisible]) {
+        [self performSelector:@selector(updateSubviews) withObject:nil afterDelay:0.3f];
+    }
 }
 
 
@@ -260,25 +267,26 @@ typedef void (^RNBlurCompletion)(void);
         _blurView = [[RNBlurView alloc] initWithCoverView:_controller.view];
         _blurView.alpha = 1.f;
         [_controller.view insertSubview:_blurView belowSubview:self];
-
+        
     }
     else if(_parentView) {
         _blurView = [[RNBlurView alloc] initWithCoverView:_parentView];
         _blurView.alpha = 1.f;
         [_parentView insertSubview:_blurView belowSubview:self];
-
+        
     }
     
     
     
     self.hidden = NO;
-
+    
     _contentView.center = CGPointMake(CGRectGetMidX(self.frame), CGRectGetMidY(self.frame));
     _dismissButton.center = _contentView.origin;
 }
 
 
 - (void)dealloc {
+    self.behindTapGestureRecognizer = nil;
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
@@ -308,7 +316,7 @@ typedef void (^RNBlurCompletion)(void);
             }
             else if(_parentView) {
                 self.frame = CGRectMake(0, 0, _parentView.bounds.size.width, _parentView.bounds.size.height);
-
+                
                 [_parentView addSubview:self];
             }
             self.top = 0;
@@ -318,14 +326,14 @@ typedef void (^RNBlurCompletion)(void);
             _blurView = [[RNBlurView alloc] initWithCoverView:_controller.view];
             _blurView.alpha = 0.f;
             self.frame = CGRectMake(0, 0, _controller.view.bounds.size.width, _controller.view.bounds.size.height);
-
+            
             [_controller.view insertSubview:_blurView belowSubview:self];
         }
         else if(_parentView) {
             _blurView = [[RNBlurView alloc] initWithCoverView:_parentView];
             _blurView.alpha = 0.f;
             self.frame = CGRectMake(0, 0, _parentView.bounds.size.width, _parentView.bounds.size.height);
-
+            
             [_parentView insertSubview:_blurView belowSubview:self];
         }
         
@@ -341,13 +349,18 @@ typedef void (^RNBlurCompletion)(void);
                 _completion();
             }
         }];
-
+        
     }
-
+    
 }
 
 
 - (void)hide {
+    if (self.behindTapGestureRecognizer) {
+        [self removeGestureRecognizer:self.behindTapGestureRecognizer];
+        self.behindTapGestureRecognizer = nil;
+    }
+    
     [self hideWithDuration:kRNBlurDefaultDuration delay:0 options:kNilOptions completion:self.defaultHideBlock];
 }
 
@@ -377,6 +390,17 @@ typedef void (^RNBlurCompletion)(void);
 
 -(void)hideCloseButton:(BOOL)hide {
     [_dismissButton setHidden:hide];
+}
+
+- (void)hideFromBehind:(UITapGestureRecognizer *)sender
+{
+    if (sender.state == UIGestureRecognizerStateEnded) {
+        CGPoint location = [sender locationInView:nil];
+        UIView *contentView = [self.subviews firstObject];
+        if (![contentView pointInside:[contentView convertPoint:location fromView:self.window] withEvent:nil]) {
+            [self hideWithDuration:0.2f delay:0 options:kNilOptions completion:nil];
+        }
+    }
 }
 
 @end
@@ -532,7 +556,7 @@ typedef void (^RNBlurCompletion)(void);
     
     //// Gradient Declarations
     NSArray *gradientColors = @[(id)topGradient.CGColor,
-    (id)bottomGradient.CGColor];
+                                (id)bottomGradient.CGColor];
     CGFloat gradientLocations[] = {0, 1};
     CGGradientRef gradient = CGGradientCreateWithColors(colorSpace, (__bridge CFArrayRef)gradientColors, gradientLocations);
     
@@ -642,7 +666,7 @@ typedef void (^RNBlurCompletion)(void);
     
     CGDataProviderRef inProvider = CGImageGetDataProvider(img);
     CFDataRef inBitmapData = CGDataProviderCopyData(inProvider);
-
+    
     
     inBuffer.width = CGImageGetWidth(img);
     inBuffer.height = CGImageGetHeight(img);
@@ -674,7 +698,7 @@ typedef void (^RNBlurCompletion)(void);
     error = vImageBoxConvolve_ARGB8888(&inBuffer, &outBuffer2, NULL, 0, 0, boxSize, boxSize, NULL, kvImageEdgeExtend);
     error = vImageBoxConvolve_ARGB8888(&outBuffer2, &inBuffer, NULL, 0, 0, boxSize, boxSize, NULL, kvImageEdgeExtend);
     error = vImageBoxConvolve_ARGB8888(&inBuffer, &outBuffer, NULL, 0, 0, boxSize, boxSize, NULL, kvImageEdgeExtend);
-
+    
     if (error) {
         NSLog(@"error from convolution %ld", error);
     }
